@@ -1,0 +1,73 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2639
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 ## load library\
+library(ribosomeProfilingQC)\
+library(AnnotationDbi)\
+library(Rsamtools)\
+#load genome\
+library(BSgenome.Hsapiens.UCSC.hg38)\
+#prepare cds annottaions\
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)\
+library(Rsamtools)\
+library(gridExtra)\
+library(GenomicFeatures)\
+\
+genome <- Hsapiens\
+txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene ## give it a short name\
+CDS <- prepareCDS(txdb)\
+\
+processBAM <- function(bamfilename, txdb, CDS, genome) \{\
+  # Index BAM\
+  indexBam(bamfilename)\
+  # Open BAM file\
+  yieldSize <- 10000000\
+  bamfile <- BamFile(bamfilename, yieldSize = yieldSize)\
+  # Estimate P-site\
+  estimatePsite(bamfile, CDS, genome)\
+  estimatePsite(bamfile, CDS, genome, anchor = "3end")\
+  # Calculate coverage depth for different regions\
+  cvgs.utr5 <- coverageDepth(RPFs = bamfilename, gtf = txdb, region="utr5")\
+  cvgs.CDS <- coverageDepth(RPFs = bamfilename, gtf = txdb, region="cds")\
+  cvgs.utr3 <- coverageDepth(RPFs = bamfilename, gtf = txdb, region="utr3")\
+  # Determine ylim based on filename keywords\
+  if (grepl("cytosol", bamfilename, ignore.case = TRUE)) \{\
+    y_limit <- c(0, 0.35)\
+  \} else if (grepl("er", bamfilename, ignore.case = TRUE)) \{\
+    y_limit <- c(0, 0.15)\
+  \} else \{\
+    y_limit <- c(0, 0.4) # Default ylim as in your original code\
+  \}\
+  \
+  # Generate and return meta plot\
+  plot <- metaPlot(cvgs.utr5, cvgs.CDS, cvgs.utr3, sample=1, plot=FALSE, ylim = y_limit)\
+  # Extract the desired portion of the filename for the title\
+  plot_title <- sub("_(.*)", "", basename(bamfilename))\
+  \
+  # Add "er" or "cytosol" to the title if they appear in the BAM filename\
+  if (grepl("cytosol", bamfilename, ignore.case = TRUE)) \{\
+    plot_title <- paste(plot_title, "cytosol")\
+  \} else if (grepl("er", bamfilename, ignore.case = TRUE)) \{\
+    plot_title <- paste(plot_title, "er")\
+  \}\
+  # Add the constructed title to the plot\
+  title(main = plot_title)\
+  cat(paste("Processed:", bamfilename, "\\n"))\
+  return(plot)\
+\}\
+  \
+\
+# Path to the directory containing BAM files\
+bam_directory <- "/Volumes/AG_Landthaler/sofia/ER/"\
+# List all BAM files in the directory\
+bam_files <- list.files(path = bam_directory, pattern = "\\\\.bam$", full.names = TRUE)\
+# Apply the function to each BAM file and collect plots\
+plots <- lapply(bam_files, processBAM, txdb=txdb, CDS=CDS, genome=genome)\
+#single plots\
+single_plot <- processBAM(bam_files["x"], txdb=txdb, CDS=CDS, genome=genome)\
+print(single_plot)\
+}
