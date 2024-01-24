@@ -14,6 +14,8 @@ library(readxl)
 # Connect to the Ensembl database
 mart <- useMart("ensembl", dataset="hsapiens_gene_ensembl")
 
+# unique_genes_RNA is a list of my genes that I created in another R script
+
 unique_genes_RNA_S<-sample(unique_genes_RNA,50)
 
 # Fetch protein sequences
