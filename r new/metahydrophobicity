@@ -8,6 +8,8 @@ library(ggplot2)
 library(readxl)
 
 
+############################## Data 
+
 
 # Connect to the Ensembl database
 mart <- useMart("ensembl", dataset="hsapiens_gene_ensembl")
@@ -81,7 +83,7 @@ print(p)
 
 
 
-##############################
+############################## random protein
 
 library(seqinr)
 library(ggplot2)
@@ -173,81 +175,6 @@ p <- ggplot(data, aes(x=x)) +
   theme_minimal() + ylim(-3,1) +
   theme(axis.title = element_text(size = 14),   # Adjust the size of axis titles
         axis.text = element_text(size = 12))
-
-print(p)
-
-
-
-########## random protein ################
-
-library(seqinr)
-library(ggplot2)
-library(rentrez)
-
-# Search UniProt for human proteins
-search_results <- entrez_search(db="protein", term="human[orgn]", retmax=5000)
-
-# Randomly select 50 protein IDs
-#set.seed(123) # for reproducibility
-selected_ids <- sample(search_results$ids, 50)
-
-# Fetch the protein sequences
-sequences <- entrez_fetch(db="protein", id=selected_ids, rettype="fasta", retmode="text")
-fasta_list <- read.fasta(textConnection(sequences), as.string = TRUE)
-
-
-# Filter sequences with length > 100 and < 600 aa
-filtered_proteins <- fasta_list[sapply(fasta_list, nchar) > 100 & sapply(fasta_list, nchar) < 600]
-
-
-# Convert each sequence from string to character vector of amino acids
-#long_proteins_converted <- lapply(long_proteins, function(seq) {
- # return(s2c(as.character(seq)))
-#})
-
-avg_hydropathy <- function(sequence, window_size =19) {
-  kyte_doolittle <- c(a=1.8, r=-4.5, n=-3.5, d=-3.5, c=2.5, q=-3.5, e=-3.5, g=-0.4, 
-                      h=-3.2, i=4.5, l=3.8, k=-3.9, m=1.9, f=2.8, p=-1.6, s=-0.8, 
-                      t=-0.7, w=-0.9, y=-1.3, v=4.2)
-  
-  sequence_values <- kyte_doolittle[sequence]
-  seq_length <- length(sequence_values)
-  
-  metahydropathy <- sapply(1:(seq_length - window_size + 1), function(i) {
-    mean(sequence_values[i:(i + window_size - 1)])
-  })
-  
-  return(metahydropathy)
-}
-
-# Compute metahydropathy values for all long proteins
-metahydropathy_values <- lapply(filtered_proteins, avg_hydropathy)
-
-#max_length <- max(sapply(metahydropathy_values, length))
-#padded_values <- lapply(metahydropathy_values, function(v) {
- # c(v, rep(NA, max_length - length(v)))
-#})
-
-#max_length <- nrow(metahydropathy_values)
-
-# Compute the mean metahydropathy value at each position
-mean_values <- apply(do.call(rbind, padded_values), 2, mean, na.rm = TRUE)
-
-# Plotting
-data <- data.frame(x = 1:length(mean_values), y = mean_values)
-
-# Modify the data to split it into positive and negative segments
-data$y_positive <- ifelse(data$y > 0, data$y, 0)
-data$y_negative <- ifelse(data$y < 0, data$y, 0)
-
-# Plotting without annotations
-p <- ggplot(data, aes(x=x)) +
-  geom_line(aes(y=y)) +
-  geom_hline(yintercept = 0, linetype="dashed", color = "red") +
-  geom_area(aes(y=y_positive), fill="blue") +
-  geom_area(aes(y=y_negative), fill="pink") +
-  labs(title="Average Metahydropathy Plot", x="Residue Position", y="Metahydropathy") +
-  theme_minimal()
 
 print(p)
 
